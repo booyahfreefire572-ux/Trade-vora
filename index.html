@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Trading Journal & Analytics</title>
+  
+  <!-- PWA Manifest & App Icons -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <!-- Mobile Native App Meta Tags (Android & iOS) -->
+  <meta name="theme-color" content="#060913">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TradingJournal">
+
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase Cloud SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="mobile-app-body">
+
+  <!-- 1. Top App Bar / Brand Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo-box">
+          <img src="logo.png" alt="Trading Journal Logo" class="brand-logo-img">
+        </div>
+        <div class="brand-titles">
+          <h1>Trading <span class="gradient-purple">Journal</span></h1>
+          <span class="badge-cloud-pro">By Tradevora</span>
+        </div>
+      </div>
+
+      <!-- Right Profile Header Button / Trigger -->
+      <div class="header-right">
+        <div id="authSection" class="auth-section">
+          <!-- Logged Out Trigger Button -->
+          <button id="openAuthModalBtn" class="pill-btn pill-blue-gradient">
+            👤 Login / Sign Up
+          </button>
+
+          <!-- Logged In Trigger Avatar (Perfect Slim Mobile Look) -->
+          <button id="userProfile" class="btn-circle-action" style="display: none;" title="My Profile">
+            👤
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. Action Pills Row (Scrollable Horizontal Buttons) -->
+  <div class="action-pills-wrapper">
+    <div class="action-pills-row">
+      <button id="exportCsvBtn" class="pill-btn pill-green">
+        <span class="pill-icon">📊</span> Export CSV
+      </button>
+      <button id="exportBtn" class="pill-btn pill-purple">
+        <span class="pill-icon">📄</span> Export Data
+      </button>
+      <label for="importFile" class="pill-btn pill-orange file-upload-label">
+        <span class="pill-icon">📁</span> Import Data
+      </label>
+      <input type="file" id="importFile" accept=".json" style="display: none;">
+    </div>
+  </div>
+
+  <!-- 3. Main Application Container -->
+  <main class="main-container">
+
+    <!-- TAB 1: HOME VIEW (Dashboard, 2x3 Stat Cards, Equity Curve) -->
+    <div id="viewHome" class="tab-view active">
+      
+      <!-- 2x3 Grid of Colorful Glassmorphic Stat Cards -->
+      <section class="stats-grid">
+        
+        <!-- 1. Total Trades (Blue Theme) -->
+        <div class="stat-card card-blue">
+          <div class="stat-top">
+            <div class="stat-icon-circle icon-blue">📈</div>
+          </div>
+          <span class="stat-title">TOTAL TRADES</span>
+          <span class="stat-value" id="totalTrades">0</span>
+          <div class="stat-bottom">
+            <span class="stat-sublabel">All time trades</span>
+            <span class="sparkline-icon">〽️</span>
+          </div>
+        </div>
+
+        <!-- 2. Win Rate (Emerald Green Theme) -->
+        <div class="stat-card card-green">
+          <div class="stat-top">
+            <div class="stat-icon-circle icon-green">%</div>
+          </div>
+          <span class="stat-title">WIN RATE</span>
+          <span class="stat-value" id="winRate">0%</span>
+          <div class="stat-bottom">
+            <span class="stat-sublabel">Winning trades</span>
+            <span class="sparkline-icon">📊</span>
+          </div>
+        </div>
+
+        <!-- 3. Avg Risk:Reward (Purple Theme) -->
+        <div class="stat-card card-purple">
+          <div class="stat-top">
+            <div class="stat-icon-circle icon-purple">📊</div>
+          </div>
+          <span class="stat-title">AVG RISK:REWARD</span>
+          <span class="stat-value" id="avgRR">1:0.0</span>
+          <div class="stat-bottom">
+            <span class="stat-sublabel">Average R:R</span>
+            <span class="sparkline-icon">📶</span>
+          </div>
+        </div>
+
+        <!-- 4. Net P&L (Teal / Cyan Theme) -->
+        <div class="stat-card card-teal">
+          <div class="stat-top">
+            <div class="stat-icon-circle icon-teal">🪙</div>
+          </div>
+          <span class="stat-title">NET P&L ($)</span>
+          <span class="stat-value" id="totalPnL">$0.00</span>
+          <div class="stat-bottom">
+            <span class="stat-sublabel">Total profit / loss</span>
+            <span class="sparkline-icon">↗</span>
+          </div>
+        </div>
+
+        <!-- 5. Winning Trades (Azure Blue Theme) -->
+        <div class="stat-card card-azure">
+          <div class="stat-top">
+            <div class="stat-icon-circle icon-azure">🏆</div>
+          </div>
+          <span class="stat-title">WINNING TRADES</span>
+          <span class="stat-value text-success" id="totalWins">0</span>
+          <div class="stat-bottom">
+            <span class="stat-sublabel">Total wins</span>
+            <span class="sparkline-icon">↗</span>
+          </div>
+        </div>
+
+        <!-- 6. Losing Trades (Crimson Red Theme) -->
+        <div class="stat-card card-red">
+          <div class="stat-top">
+            <div class="stat-icon-circle icon-red">❌</div>
+          </div>
+          <span class="stat-title">LOSING TRADES</span>
+          <span class="stat-value text-danger" id="totalLosses">0</span>
+          <div class="stat-bottom">
+            <span class="stat-sublabel">Total losses</span>
+            <span class="sparkline-icon">📉</span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Account Growth (Equity Curve) Section with Custom Illustration -->
+      <section class="card chart-section">
+        <div class="card-header flex-between">
+          <div class="chart-header-left">
+            <div class="chart-icon-box">📈</div>
+            <h2>Account Growth (Equity Curve)</h2>
+          </div>
+          <span id="chartGrowthBadge" class="badge-growth-capsule">$0.00 Net P&L</span>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="equityChart"></canvas>
+          
+          <!-- Empty State with Center Illustration Matching UI Screenshot -->
+          <div id="chartNoDataMsg" class="chart-empty-state">
+            <div class="empty-illustration-box">
+              <svg class="cloud-bars-illustration" viewBox="0 0 160 110" width="130" height="90" fill="none">
+                <path d="M40 85C25 85 15 73 20 58C23 48 35 42 45 45C50 28 72 20 88 32C98 22 118 25 125 40C140 42 148 55 142 70C138 80 128 85 115 85H40Z" fill="#1e223d" opacity="0.6"/>
+                <path d="M30 75L65 48L95 62L135 25" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M125 25H135V35" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="52" y="65" width="12" height="20" rx="3" fill="#6366f1"/>
+                <rect x="74" y="52" width="12" height="33" rx="3" fill="#818cf8"/>
+                <rect x="96" y="40" width="12" height="45" rx="3" fill="#a5b4fc"/>
+                <circle cx="28" cy="30" r="1.5" fill="#60a5fa"/>
+                <circle cx="138" cy="55" r="1.5" fill="#a78bfa"/>
+                <circle cx="80" cy="15" r="2" fill="#38bdf8"/>
+              </svg>
+            </div>
+            <p class="empty-chart-text">Add trades to visualize your account equity curve graph.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- TAB 2: TRADES VIEW (Trade Entry Form, AI Dropzone, History Table) -->
+    <div id="viewTrades" class="tab-view">
+      
+      <!-- Trade Entry Form -->
+      <section class="card form-section">
+        <div class="card-header">
+          <h2 id="formTitle">New Trade Entry</h2>
+        </div>
+
+        <!-- AI Screenshot Auto-Filler Dropzone -->
+        <div class="ai-upload-container">
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
+            <div class="dropzone-content" id="dropzonePrompt">
+              <span class="dropzone-icon">📸</span>
+              <p><strong>Upload or Drag & Drop Trade Screenshot</strong></p>
+              <span class="dropzone-hint">Broker ticket or TradingView chart (AI will auto-fill trade details)</span>
+            </div>
+            <!-- AI Loading Spinner -->
+            <div class="ai-status" id="aiStatus" style="display: none;">
+              <div class="spinner"></div>
+              <p id="aiStatusText">AI is scanning screenshot and extracting details...</p>
+            </div>
+            <!-- Screenshot Preview -->
+            <div class="preview-wrapper" id="previewWrapper" style="display: none;">
+              <img id="imagePreview" src="" alt="Screenshot Preview">
+              <button type="button" id="removeImageBtn" class="btn-remove-preview" title="Remove screenshot">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <form id="tradeForm" class="trade-form">
+          <input type="hidden" id="tradeId">
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="tradeDate">Date & Time</label>
+              <input type="datetime-local" id="tradeDate" required>
+            </div>
+
+            <div class="form-group">
+              <label for="pair">Pair / Symbol</label>
+              <input type="text" id="pair" placeholder="e.g. EUR/USD, XAU/USD, BTC" required>
+            </div>
+
+            <div class="form-group">
+              <label for="type">Trade Type</label>
+              <select id="type" required>
+                <option value="BUY">BUY (Long)</option>
+                <option value="SELL">SELL (Short)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="tradeResult">Result</label>
+              <select id="tradeResult" required>
+                <option value="WIN">WIN (Profit)</option>
+                <option value="LOSS">LOSS</option>
+                <option value="BE">BE (Break-Even)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="riskReward">Risk : Reward (R:R)</label>
+              <input type="text" id="riskReward" placeholder="e.g. 1:2 or 2.5R">
+            </div>
+
+            <div class="form-group">
+              <label for="entryPrice">Entry Price</label>
+              <input type="number" id="entryPrice" step="any" placeholder="0.00" required>
+            </div>
+
+            <div class="form-group">
+              <label for="exitPrice">Exit Price</label>
+              <input type="number" id="exitPrice" step="any" placeholder="0.00" required>
+            </div>
+
+            <div class="form-group">
+              <label for="lotSize">Lot / Quantity</label>
+              <input type="number" id="lotSize" step="any" placeholder="1.00" required>
+            </div>
+
+            <div class="form-group">
+              <label for="pnl">Profit / Loss ($ PnL)</label>
+              <input type="number" id="pnl" step="any" placeholder="+50.00 or -30.00" required>
+            </div>
+
+            <div class="form-group">
+              <label for="strategy">Strategy / Setup</label>
+              <input type="text" id="strategy" placeholder="e.g. Breakout, Reversal, Support">
+            </div>
+          </div>
+
+          <div class="form-group full-width">
+            <label for="notes">Notes & Lessons Learned</label>
+            <textarea id="notes" rows="2" placeholder="Why did you take this trade? Mistakes, emotions or key lessons..."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" id="saveBtn" class="btn btn-primary">Save Trade</button>
+            <button type="button" id="cancelBtn" class="btn btn-muted" style="display: none;">Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Trade History & Filters -->
+      <section class="card history-section">
+        <div class="card-header flex-between">
+          <h2>Trade History</h2>
+          <div class="filters">
+            <select id="filterType">
+              <option value="ALL">All Trades</option>
+              <option value="WIN">Wins Only</option>
+              <option value="LOSS">Losses Only</option>
+              <option value="BE">Break-Even Only</option>
+            </select>
+            <input type="text" id="searchPair" placeholder="Search by Pair...">
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Pair</th>
+                <th>Type</th>
+                <th>Result</th>
+                <th>R:R</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>Lot</th>
+                <th>P&L ($)</th>
+                <th>Strategy</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tradeTableBody">
+              <!-- Populated dynamically via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="noDataMessage" class="empty-state">
+          <p>No trades logged yet. Use the form above or drop a screenshot to add your first trade.</p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- TAB 3: STATS VIEW -->
+    <div id="viewStats" class="tab-view">
+      <section class="card">
+        <div class="card-header">
+          <h2>Detailed Trading Analytics</h2>
+        </div>
+        <div class="analytics-content-box">
+          <p style="color:var(--text-muted); font-size:0.9rem; line-height:1.6;">
+            Track your win/loss streaks, risk-to-reward metrics, and cumulative growth in real-time. Use the Equity Curve on the Home tab for live growth visualization.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB 4: SETTINGS VIEW -->
+    <div id="viewSettings" class="tab-view">
+      <section class="card">
+        <div class="card-header">
+          <h2>Account & App Settings</h2>
+        </div>
+        <div class="settings-content-box">
+          <div class="settings-row flex-between">
+            <div>
+              <strong>Support & Helpdesk</strong>
+              <p style="font-size:0.75rem; color:var(--text-muted);">Need assistance? Submit a ticket directly to the admin.</p>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('openSupportModalBtn').click();">💬 Contact Support</button>
+          </div>
+          <div class="settings-row flex-between" style="margin-top:1rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+            <div>
+              <strong>Plan Upgrade & Renewal</strong>
+              <p style="font-size:0.75rem; color:var(--text-muted);">Upgrade your package via Binance Pay (7, 30, 60, or 90 days).</p>
+            </div>
+            <button type="button" class="btn btn-warning btn-sm" onclick="document.getElementById('openUpgradeModalBtn').click();">⭐ Upgrade Plan</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- 4. Fixed Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav">
+    <button type="button" class="nav-item active" data-tab="home">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Home</span>
+      <span class="nav-active-bar"></span>
+    </button>
+    <button type="button" class="nav-item" data-tab="trades">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Trades</span>
+      <span class="nav-active-bar"></span>
+    </button>
+    <button type="button" class="nav-item" data-tab="stats">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Stats</span>
+      <span class="nav-active-bar"></span>
+    </button>
+    <button type="button" class="nav-item" data-tab="settings">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
+      <span class="nav-active-bar"></span>
+    </button>
+    <button type="button" class="nav-item" id="themeToggleBtn">
+      <span class="nav-icon">🌙</span>
+      <span class="nav-label">Dark Mode</span>
+      <span class="nav-active-bar"></span>
+    </button>
+  </nav>
+
+  <!-- 5. Profile Menu / Drawer Modal -->
+  <div class="modal-overlay" id="profileModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>My Account</h3>
+        <button type="button" id="closeProfileModalBtn" class="btn-close">✕</button>
+      </div>
+      <div class="modal-body profile-menu-body">
+        
+        <div class="profile-info-box" style="text-align: center; margin-bottom: 1.5rem;">
+          <div class="profile-avatar-large" style="font-size: 3rem; margin-bottom: 0.5rem;">👤</div>
+          <h4 id="userEmailDisplay" class="user-email-text-large" style="font-size: 1.1rem; color: #fff; margin-bottom: 0.5rem;">user@example.com</h4>
+          <div class="profile-badges-row" style="display: flex; gap: 0.5rem; justify-content: center;">
+            <span id="userIdBadge" class="user-id-chip">ID: #TRD-0000</span>
+            <span id="userPlanBadge" class="user-plan-chip">Trial: 3d left</span>
+          </div>
+        </div>
+        
+        <div class="profile-actions-grid" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <button id="openSupportModalBtn" class="btn btn-secondary full-width-btn">💬 Contact Support</button>
+          <button id="openUpgradeModalBtn" class="btn btn-warning full-width-btn">⭐ Upgrade Package</button>
+          <button id="logoutBtn" class="btn btn-muted full-width-btn" style="color: #ef4444; border-color: rgba(239,68,68,0.3);">🚪 Log Out</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. User Support Ticket Modal -->
+  <div class="modal-overlay" id="supportModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Submit Support Ticket</h3>
+        <button type="button" id="closeSupportModalBtn" class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="supportForm">
+          <div class="form-group">
+            <label>Subject</label>
+            <input type="text" id="supportSubject" placeholder="Brief issue title" required>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea id="supportDesc" rows="4" placeholder="Describe your issue..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary full-width-btn">Send Support Ticket</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. User Login & Registration Modal -->
+  <div class="modal-overlay" id="authModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="authModalTitle">User Account</h3>
+        <button type="button" id="closeAuthModalBtn" class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="auth-tabs">
+          <button type="button" id="tabLogin" class="auth-tab active">Log In</button>
+          <button type="button" id="tabRegister" class="auth-tab">Sign Up</button>
+        </div>
+
+        <form id="authForm" class="auth-form">
+          <div class="form-group">
+            <label for="authEmail">Email Address</label>
+            <input type="email" id="authEmail" placeholder="your@email.com" required>
+          </div>
+          <div class="form-group">
+            <label for="authPassword">Password</label>
+            <input type="password" id="authPassword" placeholder="••••••••" minlength="6" required>
+          </div>
+          <div id="authErrorMsg" class="auth-error" style="display: none;"></div>
+          <button type="submit" id="authSubmitBtn" class="btn btn-primary full-width-btn">Log In</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. Binance Paywall & Package Upgrade Modal -->
+  <div class="modal-overlay" id="paywallModal" style="display: none;">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div class="paywall-header-title">
+          <span class="crypto-icon">🟡</span>
+          <h3 id="paywallTitle">Upgrade Your Package (Binance Pay)</h3>
+        </div>
+        <button type="button" id="closePaywallModalBtn" class="btn-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div id="paywallStatusBanner" class="paywall-banner">
+          <span id="paywallUserMsg">Select a plan to activate or renew your journal account.</span>
+        </div>
+
+        <!-- 4 Duration Packages (7, 30, 60, 90 Days) -->
+        <div class="package-selection-grid">
+          <div class="package-card" data-days="7" data-name="7 Days Plan" data-price="3 USDT">
+            <div class="package-badge">Short Pass</div>
+            <h4>7 Days</h4>
+            <div class="package-price">$3 <span>USDT</span></div>
+            <p>1 Week Full Access</p>
+          </div>
+
+          <div class="package-card active" data-days="30" data-name="30 Days Plan" data-price="10 USDT">
+            <div class="package-badge popular">Popular</div>
+            <h4>30 Days</h4>
+            <div class="package-price">$10 <span>USDT</span></div>
+            <p>1 Month Full Access</p>
+          </div>
+
+          <div class="package-card" data-days="60" data-name="60 Days Plan" data-price="18 USDT">
+            <div class="package-badge">Save 10%</div>
+            <h4>60 Days</h4>
+            <div class="package-price">$18 <span>USDT</span></div>
+            <p>2 Months Full Access</p>
+          </div>
+
+          <div class="package-card" data-days="90" data-name="90 Days Plan" data-price="25 USDT">
+            <div class="package-badge best">Best Value</div>
+            <h4>90 Days</h4>
+            <div class="package-price">$25 <span>USDT</span></div>
+            <p>3 Months Full Access</p>
+          </div>
+        </div>
+
+        <!-- Binance Pay Details Box -->
+        <div class="crypto-pay-box">
+          <div class="pay-detail-row">
+            <span class="detail-label">Selected Package:</span>
+            <strong id="selectedPackageName" class="text-gold">30 Days Plan ($10 USDT)</strong>
+          </div>
+          <div class="pay-detail-row">
+            <span class="detail-label">Binance Pay ID:</span>
+            <div class="copy-field">
+              <code id="binancePayIdText">829471920</code>
+              <button type="button" class="btn-copy" id="copyPayIdBtn" title="Copy Pay ID">📋 Copy</button>
+            </div>
+          </div>
+          <div class="pay-detail-row">
+            <span class="detail-label">USDT Address (BEP20 / TRC20):</span>
+            <div class="copy-field">
+              <code id="binanceAddressText">0x8a92bC71F92D7fC317180Abc34dE3918aFc3812</code>
+              <button type="button" class="btn-copy" id="copyAddressBtn" title="Copy Wallet Address">📋 Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Verification Form with Mandatory Screenshot Upload -->
+        <form id="paymentVerifyForm" class="payment-form">
+          <div class="form-group">
+            <label for="paymentOrderIdInput">Binance Pay Order ID / Transaction Hash (TxID)</label>
+            <input type="text" id="paymentOrderIdInput" placeholder="e.g. 23891048102 or 0xabc123..." required>
+          </div>
+
+          <!-- Mandatory Payment Slip Screenshot Box -->
+          <div class="form-group">
+            <label>Payment Confirmation Screenshot (Required Proof)</label>
+            <div class="payment-slip-dropzone" id="paymentSlipDropzone">
+              <input type="file" id="paymentSlipInput" accept="image/*" style="display: none;" required>
+              <div id="paymentSlipPrompt" class="payment-slip-prompt">
+                <span class="upload-icon">🧾</span>
+                <p><strong>Click or Drop Payment Slip Screenshot</strong></p>
+                <span class="slip-hint">Upload screenshot showing Binance Pay transaction ID and amount</span>
+              </div>
+              <div id="paymentSlipPreviewWrapper" class="payment-slip-preview" style="display: none;">
+                <img id="paymentSlipPreviewImg" src="" alt="Payment Proof Slip">
+                <button type="button" id="removePaymentSlipBtn" class="btn-remove-preview" title="Remove screenshot">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="paymentAlertMsg" class="pay-alert" style="display: none;"></div>
+          <button type="submit" id="submitPaymentBtn" class="btn btn-gold full-width-btn">
+            Submit Payment Proof
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. Floating In-App Auto-Update Banner (Instant Update Prompt) -->
+  <div id="pwaUpdateBanner" class="pwa-update-banner" style="display: none;">
+    <div class="update-banner-content">
+      <span class="update-icon">🚀</span>
+      <div class="update-text-box">
+        <strong>New Update Available!</strong>
+        <p>A fresh version with improvements is ready.</p>
+      </div>
+    </div>
+    <button type="button" id="pwaUpdateBtn" class="btn btn-gold btn-sm">Update Now</button>
+  </div>
+
+  <script src="app.js"></script>
+
+  <!-- PWA Service Worker Registration & Live Update Detection -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").then((reg) => {
+          // Check for updates on load and periodically
+          reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+                  // New version detected! Show update banner on screen
+                  const banner = document.getElementById("pwaUpdateBanner");
+                  const updateBtn = document.getElementById("pwaUpdateBtn");
+                  if (banner) banner.style.display = "flex";
+                  if (updateBtn) {
+                    updateBtn.onclick = () => {
+                      updateBtn.disabled = true;
+                      updateBtn.textContent = "Updating...";
+                      installingWorker.postMessage({ type: "SKIP_WAITING" });
+                    };
+                  }
+                }
+              };
+            }
+          };
+        }).catch((err) => {
+          console.log("PWA Service Worker registration failed:", err);
+        });
+
+        // Instant refresh when new service worker activates
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>

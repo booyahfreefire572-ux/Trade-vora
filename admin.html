@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Master Admin Portal - Trading Journal</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase Cloud SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* Standalone Admin Portal Custom Styles */
+    .admin-body {
+      background-color: #080c14;
+      min-height: 100vh;
+    }
+    .admin-gatekeeper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .gatekeeper-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(240, 185, 11, 0.3);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      border-radius: var(--radius-lg);
+      max-width: 420px;
+      width: 100%;
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+    .gatekeeper-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      display: inline-block;
+    }
+    .admin-nav-tabs {
+      display: flex;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .admin-tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .admin-tab-btn:hover {
+      color: var(--text-main);
+    }
+    .admin-tab-btn.active {
+      color: #f0b90b;
+      border-bottom-color: #f0b90b;
+    }
+    .proof-thumb {
+      width: 50px;
+      height: 38px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .proof-thumb:hover {
+      transform: scale(1.15);
+      border-color: #f0b90b;
+    }
+    .lightbox-img-wrapper {
+      max-width: 90vw;
+      max-height: 85vh;
+      overflow: auto;
+      text-align: center;
+    }
+    .lightbox-img-wrapper img {
+      max-width: 100%;
+      max-height: 75vh;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+    }
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .ticket-desc-box {
+      max-width: 280px;
+      white-space: normal;
+      word-break: break-word;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body class="admin-body">
+
+  <!-- 1. Secure Admin Gatekeeper Screen (Master Passkey Lock) -->
+  <div id="adminGatekeeper" class="admin-gatekeeper">
+    <div class="gatekeeper-card">
+      <span class="gatekeeper-icon">👑</span>
+      <h2>Master Admin Portal</h2>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.5rem 0 1.5rem;">
+        Enter your private Master Admin Passkey to access platform controls, user subscriptions, and payment proofs.
+      </p>
+
+      <form id="adminLoginForm">
+        <div class="form-group" style="text-align: left; margin-bottom: 1rem;">
+          <label for="masterPasskey">Master Admin Passkey</label>
+          <input type="password" id="masterPasskey" placeholder="Enter passkey..." required>
+        </div>
+        <div id="gatekeeperError" class="auth-error" style="display: none; margin-bottom: 1rem;"></div>
+        <button type="submit" id="gatekeeperSubmitBtn" class="btn btn-gold full-width-btn">
+          Unlock Master Dashboard
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Master Admin Control Panel (Visible after authentication) -->
+  <div id="adminApp" style="display: none;">
+    
+    <!-- Top Admin Header -->
+    <header class="app-header">
+      <div class="header-container">
+        <div class="brand">
+          <span class="brand-icon">👑</span>
+          <h1>Trading Journal <span class="badge" style="background:#f0b90b; color:#000;">Master Admin</span></h1>
+        </div>
+        <div class="header-actions">
+          <span id="adminLiveStatus" class="badge-growth profit">● Cloud Live</span>
+          <button id="adminLockBtn" class="btn btn-secondary btn-sm" title="Lock Admin Portal">
+            🔒 Lock Portal
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-container">
+
+      <!-- Platform Overview Statistics -->
+      <section class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-title">Total Traders</span>
+          <span class="stat-value" id="statTotalUsers">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">Active Pro Members</span>
+          <span class="stat-value text-success" id="statActivePro">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">Pending Payment Proofs</span>
+          <span class="stat-value text-gold" id="statPendingRequests">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">Expired Accounts</span>
+          <span class="stat-value text-danger" id="statExpiredUsers">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">Estimated Revenue</span>
+          <span class="stat-value text-accent" id="statTotalRevenue">$0 USDT</span>
+        </div>
+      </section>
+
+      <!-- Admin Tab Navigation (4 Tabs) -->
+      <div class="admin-nav-tabs">
+        <button type="button" id="tabPayments" class="admin-tab-btn active">
+          🧾 Payment Proofs & Approvals
+        </button>
+        <button type="button" id="tabUsers" class="admin-tab-btn">
+          👥 All Traders Database
+        </button>
+        <button type="button" id="tabSupport" class="admin-tab-btn">
+          💬 User Support Tickets
+        </button>
+        <button type="button" id="tabSettings" class="admin-tab-btn">
+          ⚙️ Website & Binance Settings
+        </button>
+      </div>
+
+      <!-- TAB 1: Payment Proofs & Verifications Section -->
+      <section id="sectionPayments" class="card">
+        <div class="card-header flex-between">
+          <h2>Incoming Binance Payments & Screenshots</h2>
+          <button id="refreshPaymentsBtn" class="btn btn-secondary btn-sm">🔄 Refresh List</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th>Trader ID</th>
+                <th>Email</th>
+                <th>Requested Package</th>
+                <th>Binance Order ID / TxID</th>
+                <th>Payment Screenshot</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="paymentTableBody">
+              <!-- Dynamically populated from Firestore -->
+            </tbody>
+          </table>
+        </div>
+        <div id="noPaymentsMsg" class="empty-state" style="display: none;">
+          <p>No incoming payment requests found.</p>
+        </div>
+      </section>
+
+      <!-- TAB 2: All Registered Traders Database Section -->
+      <section id="sectionUsers" class="card" style="display: none;">
+        <div class="card-header flex-between">
+          <h2>All Registered Traders</h2>
+          <div class="filters">
+            <input type="text" id="searchUserFilter" placeholder="Search by Trader ID or Email...">
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th>Trader ID</th>
+                <th>Email</th>
+                <th>Registration Date</th>
+                <th>Current Plan</th>
+                <th>Valid Until</th>
+                <th>Status</th>
+                <th>Manual Grant</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <!-- Dynamically populated from Firestore -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 3: User Support Tickets Section -->
+      <section id="sectionSupport" class="card" style="display: none;">
+        <div class="card-header flex-between">
+          <h2>User Support Tickets</h2>
+          <button id="refreshSupportBtn" class="btn btn-secondary btn-sm">🔄 Refresh Tickets</button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th>Trader ID</th>
+                <th>Email</th>
+                <th>Subject</th>
+                <th>Description</th>
+                <th>Submitted Date</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="supportTableBody">
+              <!-- Dynamically populated from Firestore -->
+            </tbody>
+          </table>
+        </div>
+        <div id="noSupportMsg" class="empty-state" style="display: none;">
+          <p>No support tickets submitted yet.</p>
+        </div>
+      </section>
+
+      <!-- TAB 4: Website & Binance Crypto Settings Section -->
+      <section id="sectionSettings" class="card" style="display: none;">
+        <div class="card-header">
+          <h2>Website & Binance Pay Settings</h2>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+          Update your payment details dynamically. Changes will reflect in real-time on the main website without code editing.
+        </p>
+
+        <form id="systemSettingsForm" class="settings-grid">
+          <div class="form-group">
+            <label for="settingPayId">Your Binance Pay ID</label>
+            <input type="text" id="settingPayId" placeholder="e.g. 829471920" required>
+          </div>
+
+          <div class="form-group">
+            <label for="settingWalletAddress">USDT Wallet Address (BEP20 / TRC20)</label>
+            <input type="text" id="settingWalletAddress" placeholder="e.g. 0x8a92bC71..." required>
+          </div>
+
+          <div class="full-width" style="margin-top: 1rem;">
+            <button type="submit" id="saveSettingsBtn" class="btn btn-gold">
+              Save Settings to Cloud
+            </button>
+          </div>
+        </form>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- 3. Fullscreen Payment Screenshot Lightbox Modal -->
+  <div class="modal-overlay" id="screenshotLightbox" style="display: none;">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 id="lightboxTitle">Payment Screenshot Proof</h3>
+        <button type="button" id="closeLightboxBtn" class="btn-close">✕</button>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <div class="lightbox-img-wrapper">
+          <img id="lightboxFullImg" src="" alt="Full Payment Slip">
+        </div>
+      </div>
+      <div class="modal-footer flex-between">
+        <span id="lightboxDetails" class="text-gold" style="font-size: 0.85rem;"></span>
+        <button type="button" id="lightboxApproveBtn" class="btn btn-gold btn-sm">
+          🔑 Proceed to Activate Package
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Assign AI API Key & Activate Account Modal -->
+  <div class="modal-overlay" id="activationModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="admin-header-title">
+          <span class="admin-icon">🔑</span>
+          <h3>Activate Package & Assign AI Key</h3>
+        </div>
+        <button type="button" id="closeActivationModalBtn" class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="paywall-banner" style="margin-bottom: 1rem; text-align: left;">
+          <strong id="activationTraderInfo" class="text-gold">Trader: #TRD-0000</strong>
+          <div id="activationPlanInfo" style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Requested Package: 30 Days Plan ($10 USDT)
+          </div>
+        </div>
+
+        <form id="activationForm">
+          <div class="form-group">
+            <label for="assignApiKeyInput">Assign Groq AI API Key (Set with matching expiration)</label>
+            <input type="password" id="assignApiKeyInput" placeholder="gsk_..." required>
+            <span class="slip-hint" style="display: block; margin-top: 0.35rem; line-height: 1.4;">
+              💡 <strong>Instruction:</strong> Go to <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color: #f0b90b;">Groq Console</a>, generate an API key with the exact expiration period (<span id="keyDurationHint">30 days</span>), and paste it above.
+            </span>
+          </div>
+          <div id="activationError" class="auth-error" style="display: none; margin-bottom: 0.75rem;"></div>
+          <button type="submit" id="confirmActivationBtn" class="btn btn-gold full-width-btn" style="margin-top: 0.75rem;">
+            ✓ Confirm Key & Unlock Account
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
